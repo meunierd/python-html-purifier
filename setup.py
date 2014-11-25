@@ -7,7 +7,7 @@ setup(
     name="html-purifier3",
     version=purifier.__version__,
     packages=["purifier"],
-    url='https://github.com/PixxxeL/python-html-purifier',
+    url='https://github.com/meunierd/python-html-purifier',
     author='pixel',
     author_email='ivan.n.sergeev@gmail.com',
     maintainer='meunierd',
