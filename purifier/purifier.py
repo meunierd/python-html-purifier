@@ -4,7 +4,7 @@ Based on native Python module HTMLParser purifier of HTML
 """
 
 try:
-    from future import unicode_literals  # NOQA
+    from __future__ import unicode_literals  # NOQA
     from HTMLParser import HTMLParser
 except ImportError:  # python2
     from html.parser import HTMLParser

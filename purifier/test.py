@@ -20,29 +20,27 @@ test_data_files = [
 ]
 
 HTMLPurifier_test_whitelist = {
-    #'p': ['attr-2'],
-    #'div': ['*'],
-    #'b': [],
-    #'i': []
-    #'br': []
     '*': ['*'],
 }
 
 bleach_test_whitelist = {
-    'tags'  : ['p', 'div', 'b', 'i'],
-    'attrs' : ['attr-2']
+    'tags': ['p', 'div', 'b', 'i'],
+    'attrs': ['attr-2']
 }
+
 
 def read_file(name):
     return open(name).read()
+
 
 def HTMLPurifier_test(index=3, whitelist=HTMLPurifier_test_whitelist):
     purifier = HTMLPurifier(whitelist)
     return purifier.feed(read_file(test_data_files[index]))
 
+
 def bleach_test(index=3):
     return bleach.clean(
-        read_file(test_data_files[index]), 
+        read_file(test_data_files[index]),
         tags = bleach_test_whitelist['tags'],
         attributes = bleach_test_whitelist['attrs'],
         strip = False
@@ -51,7 +49,5 @@ def bleach_test(index=3):
 if __name__ == '__main__':
     start_time = time.clock()
     index = 5
-    print HTMLPurifier_test(index)
-    #print HTMLPurifier_test(index, whitelist=None)
-    #print bleach_test(index)
-    print time.clock() - start_time, 's'
+    print(HTMLPurifier_test(index))
+    print(time.clock() - start_time, 's')
