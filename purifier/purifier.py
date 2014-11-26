@@ -2,9 +2,9 @@
 """
 Based on native Python module HTMLParser purifier of HTML
 """
+from __future__ import unicode_literals  # NOQA
 
 try:
-    from __future__ import unicode_literals  # NOQA
     from HTMLParser import HTMLParser
 except ImportError:  # python2
     from html.parser import HTMLParser
@@ -13,6 +13,10 @@ import logging
 
 
 logger = logging.getLogger(__name__)
+
+
+class InvalidMarkupException(Exception):
+    pass
 
 
 class HTMLPurifier(HTMLParser):
@@ -33,6 +37,16 @@ class HTMLPurifier(HTMLParser):
     unclosedTags = ['br', 'hr']
     isStrictHtml = False
     log = logger
+
+    def __init__(self, whitelist=None, remove_entity=False, validate=False):
+        """
+        Build white list of tags and their attributes and reset purifying data
+        """
+        self.removeEntity = remove_entity
+        HTMLParser.__init__(self)
+        self.__set_whitelist(whitelist)
+        self.reset_purified()
+        self.validate = validate
 
     def feed(self, data):
         """
@@ -62,7 +76,7 @@ class HTMLPurifier(HTMLParser):
         if tag in self.sanitizelist:
             self.level += 1
             return
-        if self.isNotPurify or tag in self.whitelist_keys:
+        if self.isNotPurify or tag in self.whitelist:
             attrs = self.__attrs_str(tag, attrs)
             attrs = ' ' + attrs if attrs else ''
             if tag in self.unclosedTags and self.isStrictHtml:
@@ -70,6 +84,10 @@ class HTMLPurifier(HTMLParser):
             else:
                 tmpl = '<%s%s>'
             self.data.append(tmpl % (tag, attrs,))
+        elif self.validate and tag not in self.whitelist:
+            raise InvalidMarkupException('Bad tag: %s' % tag)
+        else:
+            import ipdb; ipdb.set_trace()
 
     def handle_endtag(self, tag):
         """
@@ -81,8 +99,10 @@ class HTMLPurifier(HTMLParser):
             return
         if tag in self.unclosedTags:
             return
-        if self.isNotPurify or tag in self.whitelist_keys:
+        if self.isNotPurify or tag in self.whitelist:
             self.data.append('</%s>' % tag)
+        elif self.validate and tag not in self.whitelist_keys:
+            raise InvalidMarkupException('Bad tag: %s' % tag)
 
     def handle_data(self, data):
         """
@@ -100,15 +120,6 @@ class HTMLPurifier(HTMLParser):
         if not self.removeEntity:
             self.data.append('&%s;' % name)
 
-    def __init__(self, whitelist=None, remove_entity=False):
-        """
-        Build white list of tags and their attributes and reset purifying data
-        """
-        self.removeEntity = remove_entity
-        HTMLParser.__init__(self)
-        self.__set_whitelist(whitelist)
-        self.reset_purified()
-
     def __set_whitelist(self, whitelist=None):
         """
         Update default white list by customer white list
@@ -117,7 +128,7 @@ class HTMLPurifier(HTMLParser):
         # defaults
         self.whitelist = {}
         # tags that removed with contents
-        self.sanitizelist = ['script', 'style']
+        self.sanitizelist = []
         if isinstance(whitelist, dict) and '*' in whitelist.keys():
             self.isNotPurify = True
             self.whitelist_keys = []
@@ -139,4 +150,6 @@ class HTMLPurifier(HTMLParser):
             value = attr[1] or ''
             if all_attrs or key in enabled:
                 items.append('%s="%s"' % (key, value,))
+            elif self.validate and key not in enabled:
+                raise InvalidMarkupException("Bad attr: %s" % key)
         return ' '.join(items)
