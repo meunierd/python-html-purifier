@@ -19,6 +19,14 @@ class InvalidMarkupException(Exception):
     pass
 
 
+class InvalidTagException(InvalidMarkupException):
+    pass
+
+
+class InvalidAttributeException(InvalidMarkupException):
+    pass
+
+
 class HTMLPurifier(HTMLParser):
     """
     Cuts the tags and attributes are not in the whitelist. Their content is
@@ -30,8 +38,6 @@ class HTMLPurifier(HTMLParser):
     You can use the symbol '*' to allow all tags and/or attributes
     """
 
-    DEBUG = False
-    level = 0
     isNotPurify = False
     removeEntity = False
     unclosedTags = ['br', 'hr']
@@ -52,6 +58,7 @@ class HTMLPurifier(HTMLParser):
         """
         Main method for purifying HTML (overrided)
         """
+        self.reset()
         self.reset_purified()
         HTMLParser.feed(self, data)
         return self.html()
@@ -73,9 +80,6 @@ class HTMLPurifier(HTMLParser):
         Handler of starting tag processing (overrided, private)
         """
         self.log.debug('Encountered a start tag: %s %s', tag, attrs)
-        if tag in self.sanitizelist:
-            self.level += 1
-            return
         if self.isNotPurify or tag in self.whitelist:
             attrs = self.__attrs_str(tag, attrs)
             attrs = ' ' + attrs if attrs else ''
@@ -85,32 +89,26 @@ class HTMLPurifier(HTMLParser):
                 tmpl = '<%s%s>'
             self.data.append(tmpl % (tag, attrs,))
         elif self.validate and tag not in self.whitelist:
-            raise InvalidMarkupException('Bad tag: %s' % tag)
-        else:
-            import ipdb; ipdb.set_trace()
+            raise InvalidTagException(tag)
 
     def handle_endtag(self, tag):
         """
         Handler of ending tag processing (overrided, private)
         """
         self.log.debug('Encountered an end tag : %s', tag)
-        if tag in self.sanitizelist:
-            self.level -= 1
-            return
         if tag in self.unclosedTags:
             return
         if self.isNotPurify or tag in self.whitelist:
             self.data.append('</%s>' % tag)
-        elif self.validate and tag not in self.whitelist_keys:
-            raise InvalidMarkupException('Bad tag: %s' % tag)
+        elif self.validate and tag not in self.whitelist:
+            raise InvalidTagException(tag)
 
     def handle_data(self, data):
         """
         Handler of processing data inside tag (overrided, private)
         """
         self.log.debug('Encountered some data: %s', data)
-        if not self.level:
-            self.data.append(data)
+        self.data.append(data)
 
     def handle_entityref(self, name):
         """
@@ -120,7 +118,7 @@ class HTMLPurifier(HTMLParser):
         if not self.removeEntity:
             self.data.append('&%s;' % name)
 
-    def __set_whitelist(self, whitelist=None):
+    def __set_whitelist(self, whitelist={}):
         """
         Update default white list by customer white list
         """
@@ -128,15 +126,12 @@ class HTMLPurifier(HTMLParser):
         # defaults
         self.whitelist = {}
         # tags that removed with contents
-        self.sanitizelist = []
         if isinstance(whitelist, dict) and '*' in whitelist.keys():
             self.isNotPurify = True
-            self.whitelist_keys = []
             return
         else:
             self.isNotPurify = False
-        self.whitelist.update(whitelist or {})
-        self.whitelist_keys = self.whitelist.keys()
+        self.whitelist.update(whitelist)
 
     def __attrs_str(self, tag, attrs):
         """
@@ -145,11 +140,9 @@ class HTMLPurifier(HTMLParser):
         enabled = self.whitelist.get(tag, ['*'])
         all_attrs = '*' in enabled
         items = []
-        for attr in attrs:
-            key = attr[0]
-            value = attr[1] or ''
-            if all_attrs or key in enabled:
-                items.append('%s="%s"' % (key, value,))
-            elif self.validate and key not in enabled:
-                raise InvalidMarkupException("Bad attr: %s" % key)
+        for attribute, value in attrs:
+            if all_attrs or attribute in enabled:
+                items.append('%s="%s"' % (attribute, value or '',))
+            elif self.validate and attribute not in enabled:
+                raise InvalidAttributeException(attribute)
         return ' '.join(items)

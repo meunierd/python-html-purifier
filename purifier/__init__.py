@@ -13,4 +13,4 @@ Here is purifier.models.PurifyedCharField, purifier.models.PurifyedTextField
 for Django ORM and purifier.forms.PurifyedCharField for Django forms
 """
 
-__version__ = '2.0.0'
+__version__ = '2.1.0'
